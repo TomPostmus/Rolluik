@@ -52,6 +52,9 @@ class AlarmSlot:
 		
 	# Check the current time (now), falls within the same minute as alarm_time
 	def check_alarm(self):
-		return datetime.datetime.now().minute == self.alarm_time.minute
+		now = datetime.datetime.now()
+		equal_minute = now.minute == self.alarm_time.minute
+		equal_hour = now.hour == self.alarm_time.hour
+		return equal_minute and equal_hour
 		
 			
