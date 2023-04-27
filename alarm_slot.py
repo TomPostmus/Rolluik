@@ -5,50 +5,79 @@ import time
 class AlarmSlot:
 	def __init__(self):
 		try:
-			self.alarm_file = open("alarm_value.txt", 'x') 	# try to exclusively open file to create it if doesn't exist
-			self.alarm_file.close()
-		except OSError: pass										# if file exists, FileExistsError is raised
+			alarm_file = open("alarm_value.txt", 'x') 	# try to exclusively open file to create it if doesn't exist
+			alarm_file.close()
+		except OSError: pass							# if file exists, FileExistsError is raised
 		
-		self.alarm_time = self.read_alarm_file() 	# get time object of alarm from file
-		self.write_alarm_file(self.alarm_time) 		# write time object to file
+		self.read_alarm_time() 							# read alarm time from file
+		self.read_onoff()								# read onoff value from file
+		
+		self.write_file() 								# write time object to file, necessary in case default vals were returned
 	
 	
-	# Read the alarm file and return datetime object
-	def read_alarm_file(self):
-		self.alarm_file = open("alarm_value.txt", "r") # open file for read
+	# Get alarm time (internal and REST requests), returns string
+	def read_alarm_time(self):
+		alarm_file = open("alarm_value.txt", "r") # open file for read
 		
-		lines = self.alarm_file.readlines()
+		lines = alarm_file.readlines()		# read contents
+		alarm_file.close() 				# close file again
+		
 		try:
-			time_string = lines[0] 		# read the alarm time from the first string
-		except:
-			time_string = ""			# if the file is empty, IndexError will be thrown
+			time_string = lines[0] 				# read the alarm time from the first string
+		except IndexError:						# for empty file, IndexError is thrown, return default time
+			time_string = "09:00:00"			# nine in the morning is default time
 		
-		self.alarm_file.close() 		# close file again
+		self.alarm_time = self.parse_time_string(time_string)
+		return time_string 						
+	
+	# Get onoff value (internal and REST requests), returns string
+	def read_onoff(self):
+		alarm_file = open("alarm_value.txt", "r") # open file for read
 		
-		if len(time_string) == 8: 		# if it is a valid time, parse it
+		lines = alarm_file.readlines()		# read contents
+		alarm_file.close() 				# close file again
+		
+		try:
+			onoff_string = lines[1] 			# read the second line
+		except IndexError:						# for empty file, IndexError is thrown, return default
+			onoff_string = "off" 				# return off by default
+			
+		self.onoff = self.parse_onoff_string(onoff_string)
+		return onoff_string						
+			
+	# Set alarm time (from REST requests)
+	def set_alarm_time(self, time_string):
+		self.alarm_time = self.parse_time_string(time_string)
+		self.write_file()
+		
+	# Set onoff value (from REST requests)
+	def set_onoff(self, onoff_string):
+		self.onoff = self.parse_onoff_string(onoff_string)
+		self.write_file()
+			
+	# Write alarm time and onoff to file
+	def write_file(self):		
+		alarm_file = open("alarm_value.txt", "w") 	# open file for write (automatically clears file)
+		
+		time_string = self.alarm_time.strftime("%H:%M:%S")
+		alarm_file.write(time_string + "\n")
+		
+		onoff_string = "on" if self.onoff else "off"
+		alarm_file.write(onoff_string + "\n")
+		
+		alarm_file.close() 					# close file again
+				
+				
+	def parse_time_string(self, time_string):
+		if len(time_string) >= 8: 								# parse given time
 			hours = int(time_string[0:2])
 			mins = int(time_string[3:5])
 			secs = int(time_string[6:8])
-			return datetime.time(hours, mins, secs)
-		else: 							# otherwise, create new time obj
-			return datetime.time(9, 0, 0) # default time is 9 morning
-			
-			
-	# Update alarm time object and write to alarm file
-	def write_alarm_file(self, alarm_time):
-		self.alarm_time = alarm_time # update alarm_time object
+			return datetime.time(hours, mins, secs) 	# update alarm time object, throws ValueError if values are in wrong range	
+		else: raise ValueError
 		
-		self.alarm_file = open("alarm_value.txt", "w") 	# open file for write (automatically clears file)
-		
-		# Write in format HH:MM:SS
-		hours = alarm_time.strftime("%H")
-		mins = alarm_time.strftime("%M")
-		secs = alarm_time.strftime("%S")
-		time_string = hours + ":" + mins + ":" + secs
-		self.alarm_file.write(time_string)
-		
-		self.alarm_file.close() # close file again
-				
+	def parse_onoff_string(self, onoff_string):
+		return "on" in onoff_string
 		
 	# Check the current time (now), falls within the same minute as alarm_time
 	def check_alarm(self):
